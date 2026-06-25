@@ -15,9 +15,15 @@ from telegram.ext import (
 # ================= CONFIG ================= #
 
 BOT_TOKEN = os.getenv("8782523144:AAGJ-xOKaUQiTpwI1g7zo-yi9dAur6yYYCM")
+
 DB_FILE = "groups.db"
 
-# ================= DB ================= #
+# ================= SAFETY CHECK ================= #
+
+if not BOT_TOKEN:
+    print("❌ BOT_TOKEN is missing in environment variables")
+
+# ================= DATABASE ================= #
 
 def init_db():
     conn = sqlite3.connect(DB_FILE)
@@ -46,7 +52,7 @@ def get_status(chat_id):
     conn.close()
     return row[0] if row else "off"
 
-# ================= ANTI SPAM ================= #
+# ================= ANTI-SPAM ================= #
 
 last_msg_time = {}
 
@@ -70,15 +76,15 @@ def should_translate(text: str) -> bool:
 
     words = set(text_low.split())
 
-    # Hinglish detect
+    # skip Hinglish
     if len(words.intersection(hinglish_words)) >= 2:
         return False
 
-    # Hindi script detect
+    # skip Hindi script
     if any("\u0900" <= c <= "\u097F" for c in text):
         return False
 
-    # English detect
+    # skip normal English
     ascii_ratio = sum(c.isascii() for c in text) / max(len(text), 1)
     if ascii_ratio > 0.85:
         return False
@@ -89,26 +95,18 @@ def should_translate(text: str) -> bool:
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "🔥 Translator Bot Active\n\n"
+        "🤖 Translator Bot Active\n\n"
         "/on - enable translation in group\n"
         "/off - disable translation\n\n"
-        "💬 DM me text for instant translation"
+        "💬 DM me for instant translation"
     )
 
 async def on(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    chat = update.effective_chat
-    if chat.type not in ["group", "supergroup"]:
-        return await update.message.reply_text("Use /on in group only")
-
-    set_status(chat.id, "on")
+    set_status(update.effective_chat.id, "on")
     await update.message.reply_text("✅ Translation ENABLED")
 
 async def off(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    chat = update.effective_chat
-    if chat.type not in ["group", "supergroup"]:
-        return await update.message.reply_text("Use /off in group only")
-
-    set_status(chat.id, "off")
+    set_status(update.effective_chat.id, "off")
     await update.message.reply_text("❌ Translation DISABLED")
 
 # ================= CORE HANDLER ================= #
@@ -123,8 +121,6 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     chat_type = update.effective_chat.type
 
-    print(f"[CHAT] {chat_type} | {text}")
-
     # ================= DM ================= #
     if chat_type == "private":
         try:
@@ -135,8 +131,7 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     # ================= GROUP ================= #
-    status = get_status(update.effective_chat.id)
-    if status != "on":
+    if get_status(update.effective_chat.id) != "on":
         return
 
     if is_spam(update.effective_user.id):
