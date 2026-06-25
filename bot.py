@@ -14,7 +14,7 @@ from telegram.ext import (
 
 # ================= CONFIG ================= #
 
-BOT_TOKEN = os.getenv("8782523144:AAE9AasLZYj-f1WimVmPeAEyOn0S7OH2p_c")
+BOT_TOKEN = os.getenv("BOT_TOKEN")
 
 DB_FILE = "groups.db"
 
